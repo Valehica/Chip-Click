@@ -2,19 +2,19 @@ using UnityEngine;
 
 public class Interactuable : MonoBehaviour
 {
-    public Vector3 liftedPositionOffset = new Vector3(0, 0.2f, 0); // subir 20 cm
-    public Vector3 liftedRotation = new Vector3(0, 0, 90); // rotación a vertical
+    [SerializeField] protected Vector3 liftedPositionOffset = new Vector3(0, 0.2f, 0); // Editable en Unity
+    [SerializeField] protected Vector3 liftedRotation = new Vector3(0, 0, 90); // Editable en Unity
 
-    private Vector3 originalPosition;
-    private Quaternion originalRotation;
-
-    private bool isDragging = false;
+    protected Vector3 originalPosition;
+    protected Quaternion originalRotation;
+    protected bool isDragging = false;
 
     void Start()
     {
         originalPosition = transform.position;
         originalRotation = transform.rotation;
     }
+
 
     void OnMouseDown()
     {
@@ -37,6 +37,11 @@ public class Interactuable : MonoBehaviour
     }
 
     void OnMouseUp()
+    {
+        restartPosition();
+    }
+
+    public void restartPosition()
     {
         // Vuelve a su posición y rotación original
         transform.position = originalPosition;
