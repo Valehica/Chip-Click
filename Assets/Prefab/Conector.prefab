@@ -17,7 +17,7 @@ GameObject:
   - component: {fileID: 430062935253346093}
   m_Layer: 0
   m_Name: Conector
-  m_TagString: Untagged
+  m_TagString: Conexion
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -126,6 +126,7 @@ MonoBehaviour:
   isStartConnector: 1
   isEndConnector: 0
   lineColor: {r: 0.39488173, g: 1, b: 0, a: 1}
+  sameColorConnection: 0
 --- !u!54 &1179774856949358609
 Rigidbody:
   m_ObjectHideFlags: 0

@@ -1,10 +1,20 @@
 using UnityEngine;
+using System.Collections.Generic;
+
+public enum CableColor
+{
+    Red,
+    Green,
+    Blue,
+    Yellow
+}
 
 public class CableConnector3D : MonoBehaviour
 {
     public bool isStartConnector = false;
     public bool isEndConnector = false;
-    public Color lineColor = Color.white;
+    public CableColor lineColor;
+    public Color color;
 
     private LineRenderer lineRenderer;
     private bool isDrawing = false;
@@ -14,16 +24,21 @@ public class CableConnector3D : MonoBehaviour
 
     public bool sameColorConnection = false;
 
+    // NUEVO: Lista para registrar todos los conectores
+    private static List<CableConnector3D> allConnectors = new List<CableConnector3D>();
+
     void Start()
     {
-        // Asignar color al material del cubo hijo
+        // Registrar esta instancia
+        allConnectors.Add(this);
+
+        color = GetUnityColor(lineColor);
         Renderer cubeRenderer = GetComponentInChildren<Renderer>();
         if (cubeRenderer != null)
         {
-            cubeRenderer.material.color = lineColor;
+            cubeRenderer.material.color = GetUnityColor(lineColor);
         }
 
-        // Inicializar o agregar LineRenderer
         lineRenderer = gameObject.GetComponent<LineRenderer>();
         if (lineRenderer == null)
         {
@@ -33,10 +48,22 @@ public class CableConnector3D : MonoBehaviour
         lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
         lineRenderer.startWidth = 0.05f;
         lineRenderer.endWidth = 0.05f;
-        lineRenderer.startColor = lineColor;
-        lineRenderer.endColor = lineColor;
+        lineRenderer.startColor = GetUnityColor(lineColor);
+        lineRenderer.endColor = GetUnityColor(lineColor);
         lineRenderer.positionCount = 2;
         lineRenderer.enabled = false;
+    }
+
+    private Color GetUnityColor(CableColor cableColor)
+    {
+        switch (cableColor)
+        {
+            case CableColor.Red: return Color.red;
+            case CableColor.Green: return Color.green;
+            case CableColor.Blue: return Color.blue;
+            case CableColor.Yellow: return Color.yellow;
+            default: return Color.white;
+        }
     }
 
     void Update()
@@ -52,7 +79,6 @@ public class CableConnector3D : MonoBehaviour
             {
                 if (isStartConnector)
                 {
-                    // Si ya había una conexión, se reinicia
                     if (connectedEndConnector != null)
                     {
                         connectedEndConnector = null;
@@ -90,8 +116,13 @@ public class CableConnector3D : MonoBehaviour
                     lineRenderer.SetPosition(1, connectedEndConnector.transform.position);
                     lineRenderer.enabled = true;
 
-                    // Evaluar si los colores coinciden
                     sameColorConnection = this.lineColor == connectedEndConnector.lineColor;
+                    var componenteMinijuego = transform.parent?.parent?.GetComponent<MinijuegoController>();
+
+                    if (componenteMinijuego != null)
+                    {
+                        componenteMinijuego.coneccion(GetUnityColor(lineColor), sameColorConnection);
+                    }
                 }
                 else
                 {
@@ -125,5 +156,15 @@ public class CableConnector3D : MonoBehaviour
             return ray.GetPoint(distance);
         }
         return transform.position;
+    }
+
+    // NUEVO: Función pública para resetear todas las conexiones
+    public static void ResetAllConnections()
+    {
+        foreach (var connector in allConnectors)
+        {
+            connector.ResetCable();
+        }
+        activeStartConnector = null;
     }
 }

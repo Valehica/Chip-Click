@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections.Generic;
 
 public class Cautin : Interactuable
 {
@@ -18,24 +19,25 @@ public class Cautin : Interactuable
     [SerializeField] private TextMeshProUGUI textoTemperatura;
     [SerializeField] private GameObject indicadorEnceniddo;
 
-    [SerializeField] private GameObject pelotaEstanio;
+    [Header("Estaño")]
+    [SerializeField] private GameObject prefabPelotitaEstanio;
+    [SerializeField] private Transform spawnEstanio;
+    private GameObject instanciaPelotita;
+
+    private GameObject ultimaConexionTocada;
+
+    // NUEVO: lista de pelotitas colocadas en conexiones
+    private List<GameObject> pelotitasColocadas = new List<GameObject>();
 
     void Start()
     {
         originalPosition = transform.position;
         originalRotation = transform.rotation;
-        
-        pelotaEstanio.SetActive(false);
-        
+
         botonModelo0n.SetActive(false);
         botonModelo0ff.SetActive(true);
         textoTemperatura.text = temperatura.ToString("F0") + "°";
         indicadorEnceniddo.GetComponent<MeshRenderer>().material.SetColor("_BaseColor", Color.red);
-
-        if (pelotaEstanio != null)
-        {
-            pelotaEstanio.SetActive(false);
-        }
     }
 
     void Update()
@@ -44,16 +46,18 @@ public class Cautin : Interactuable
         {
             if (tocaGrasa)
             {
-                temperatura -= (velocidadDeCalentamiento/2) * Time.deltaTime;
-                temperatura = Mathf.Max(0, temperatura); // No bajar de 0
-                textoTemperatura.text = temperatura.ToString("F0") + "°";
+                temperatura -= (velocidadDeCalentamiento / 2) * Time.deltaTime;
+                temperatura = Mathf.Max(0, temperatura);
             }
             else
             {
-                temperatura += velocidadDeCalentamiento * Time.deltaTime;
-                textoTemperatura.text = temperatura.ToString("F0") + "°"; 
+                if (temperatura <= 150)
+                {
+                    temperatura += velocidadDeCalentamiento * Time.deltaTime;
+                }
             }
-            
+
+            textoTemperatura.text = temperatura.ToString("F0") + "°";
         }
         else
         {
@@ -67,37 +71,69 @@ public class Cautin : Interactuable
             {
                 if (hit.collider.gameObject == botonOn)
                 {
-                    cautinEncendido = true;
-                    botonModelo0n.SetActive(true);
-                    botonModelo0ff.SetActive(false);
-                    indicadorEnceniddo.GetComponent<MeshRenderer>().material.SetColor("_BaseColor", Color.green);
+                    EncenderCautin();
                 }
                 else if (hit.collider.gameObject == botonOff)
                 {
-                    cautinEncendido = false;
-                    botonModelo0n.SetActive(false);
-                    botonModelo0ff.SetActive(true);
-                    textoTemperatura.text = "0°";
-                    indicadorEnceniddo.GetComponent<MeshRenderer>().material.SetColor("_BaseColor", Color.red);
+                    ApagarCautin();
                 }
             }
         }
+    }
+
+    void EncenderCautin()
+    {
+        cautinEncendido = true;
+        botonModelo0n.SetActive(true);
+        botonModelo0ff.SetActive(false);
+        indicadorEnceniddo.GetComponent<MeshRenderer>().material.SetColor("_BaseColor", Color.green);
+    }
+
+    public void ApagarCautin()
+    {
+        cautinEncendido = false;
+        botonModelo0n.SetActive(false);
+        botonModelo0ff.SetActive(true);
+        textoTemperatura.text = "0°";
+        indicadorEnceniddo.GetComponent<MeshRenderer>().material.SetColor("_BaseColor", Color.red);
     }
 
     void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Grasa"))
         {
-            Debug.Log("Toco Grasa");
-            // Disminuye temperatura al mismo ritmo que aumentaría
-            pelotaEstanio.SetActive(false);
+            if (instanciaPelotita != null)
+            {
+                Destroy(instanciaPelotita);
+            }
+
+            Debug.Log("Tocó Grasa");
             tocaGrasa = true;
         }
 
-        if (other.CompareTag("Estanio") && pelotaEstanio != null)
+        if (other.CompareTag("Estanio"))
         {
-            Debug.Log("Toco Estanio");
-            pelotaEstanio.SetActive(true);
+            if (!cautinEncendido)
+            {
+                Debug.Log("El cautín está apagado. No se puede tomar estaño.");
+                return;
+            }
+
+            if (instanciaPelotita == null)
+            {
+                Debug.Log("Tocó Estanio - creando pelotita");
+                instanciaPelotita = Instantiate(prefabPelotitaEstanio, spawnEstanio.position, Quaternion.identity, transform);
+            }
+            else
+            {
+                Debug.Log("Ya hay una pelotita de estaño");
+            }
+        }
+
+        if (other.CompareTag("Conexion"))
+        {
+            ultimaConexionTocada = other.gameObject;
+            Debug.Log("Chocó con conexión");
         }
     }
 
@@ -107,5 +143,53 @@ public class Cautin : Interactuable
         {
             tocaGrasa = false;
         }
+
+        if (other.CompareTag("Conexion") && other.gameObject == ultimaConexionTocada)
+        {
+            ultimaConexionTocada = null;
+        }
+    }
+
+    void OnMouseUp()
+    {
+        restartPosition();
+
+        if (ultimaConexionTocada != null && instanciaPelotita != null)
+        {
+            instanciaPelotita.transform.SetParent(null);
+            instanciaPelotita.transform.position = ultimaConexionTocada.transform.position + new Vector3(0, 0.05f, 0);
+
+            // NUEVO: agregar a la lista de pelotitas colocadas
+            pelotitasColocadas.Add(instanciaPelotita);
+
+            instanciaPelotita = null;
+
+            GetComponentInParent<MinijuegoController>().estanioConexion(
+                ultimaConexionTocada.GetComponent<CableConnector3D>().color,
+                true,
+                temperatura
+            );
+
+            Debug.Log("Ubicando pelotita en la conexión");
+        }
+    }
+
+    // NUEVO: función para resetear todas las pelotitas puestas
+    public void ResetEstanios()
+    {
+        if (instanciaPelotita != null)
+        {
+            Destroy(instanciaPelotita);
+            instanciaPelotita = null;
+        }
+
+        foreach (GameObject pelotita in pelotitasColocadas)
+        {
+            if (pelotita != null)
+                Destroy(pelotita);
+        }
+
+        pelotitasColocadas.Clear();
+        Debug.Log("Pelotitas de estaño reseteadas");
     }
 }
